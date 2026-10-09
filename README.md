@@ -149,6 +149,7 @@ chmod +x /usr/local/bin/build-napilab-repo.sh
 | `mbscan` | Modbus RTU bus scanner | [lab240/mbscan](https://github.com/lab240/mbscan) | gcc, static |
 | `modbus-slave` | Modbus RTU slave emulator | [lab240/modbus-slave](https://github.com/lab240/modbus-slave) | gcc, static |
 | `gpiod` | libgpiod v2 — tools and library | [brgl/libgpiod](https://github.com/brgl/libgpiod) (branch `v2.2.x`) | autotools + cross-compile |
+| `napi-mac` | NAPI board MACs from EEPROM, `lanusb1..4` names | [lab240/napi-macs-from-eeprom](https://github.com/lab240/napi-macs-from-eeprom) (branch `c-port`) | `make test` + `make deb`, static, arm64 only |
 
 ---
 
@@ -167,6 +168,7 @@ sudo build-napilab-repo.sh mbusd
 sudo build-napilab-repo.sh mbscan
 sudo build-napilab-repo.sh modbus-slave
 sudo build-napilab-repo.sh gpiod
+sudo build-napilab-repo.sh napi-mac
 ```
 
 ### Add a new package
@@ -199,6 +201,7 @@ sudo apt update
 
 ```bash
 sudo apt install mbusd mbscan modbus-slave gpiod
+sudo apt install napi-mac        # NAPI board only (arm64)
 ```
 
 ### Remove the repository
@@ -232,6 +235,7 @@ scripts/
     build-mbscan.sh
     build-modbus-slave.sh
     build-gpiod.sh
+    build-napi-mac.sh
     build-napilab-repo.sh            # orchestrator script
 ```
 
@@ -254,10 +258,12 @@ scripts/
     build-mbscan.sh
     build-modbus-slave.sh
     build-gpiod.sh
+    build-napi-mac.sh
 
 /root/napilab-build/                 # build working directory
     mbusd/
     mbscan/
     modbus-slave/
     gpiod/
+    napi-mac/
 ```

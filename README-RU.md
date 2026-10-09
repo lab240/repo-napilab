@@ -149,6 +149,7 @@ chmod +x /usr/local/bin/build-napilab-repo.sh
 | `mbscan` | Modbus RTU bus scanner | [lab240/mbscan](https://github.com/lab240/mbscan) | gcc, static |
 | `modbus-slave` | Modbus RTU slave emulator | [lab240/modbus-slave](https://github.com/lab240/modbus-slave) | gcc, static |
 | `gpiod` | libgpiod v2 — утилиты и библиотека | [brgl/libgpiod](https://github.com/brgl/libgpiod) (ветка `v2.2.x`) | autotools + cross-compile |
+| `napi-mac` | MAC-адреса из EEPROM платы NAPI, имена `lanusb1..4` | [lab240/napi-macs-from-eeprom](https://github.com/lab240/napi-macs-from-eeprom) (ветка `c-port`) | `make test` + `make deb`, static, только arm64 |
 
 ---
 
@@ -167,6 +168,7 @@ sudo build-napilab-repo.sh mbusd
 sudo build-napilab-repo.sh mbscan
 sudo build-napilab-repo.sh modbus-slave
 sudo build-napilab-repo.sh gpiod
+sudo build-napilab-repo.sh napi-mac
 ```
 
 ### Добавить новый пакет
@@ -199,6 +201,7 @@ sudo apt update
 
 ```bash
 sudo apt install mbusd mbscan modbus-slave gpiod
+sudo apt install napi-mac        # только для платы NAPI (arm64)
 ```
 
 ### Удаление репозитория
@@ -232,6 +235,7 @@ scripts/
     build-mbscan.sh
     build-modbus-slave.sh
     build-gpiod.sh
+    build-napi-mac.sh
     build-napilab-repo.sh            # главный скрипт-оркестратор
 ```
 
@@ -254,10 +258,12 @@ scripts/
     build-mbscan.sh
     build-modbus-slave.sh
     build-gpiod.sh
+    build-napi-mac.sh
 
 /root/napilab-build/                 # рабочая директория сборки
     mbusd/
     mbscan/
     modbus-slave/
     gpiod/
+    napi-mac/
 ```
