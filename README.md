@@ -18,7 +18,8 @@ Instructions for deploying an APT repository from scratch on a bare VPS (Ubuntu)
 apt update && apt upgrade -y
 apt install -y nginx certbot python3-certbot-nginx reprepro gnupg2 \
                build-essential cmake gcc-aarch64-linux-gnu git \
-               autoconf automake libtool autoconf-archive
+               autoconf automake libtool autoconf-archive \
+               golang-go curl xz-utils
 ```
 
 ---
@@ -150,6 +151,11 @@ chmod +x /usr/local/bin/build-napilab-repo.sh
 | `modbus-slave` | Modbus RTU slave emulator | [lab240/modbus-slave](https://github.com/lab240/modbus-slave) | gcc, static |
 | `gpiod` | libgpiod v2 — tools and library | [brgl/libgpiod](https://github.com/brgl/libgpiod) (branch `v2.2.x`) | autotools + cross-compile |
 | `napi-mac` | NAPI board MACs from EEPROM, `lanusb1..4` names | [lab240/napi-macs-from-eeprom](https://github.com/lab240/napi-macs-from-eeprom) (branch `c-port`) | `make test` + `make deb`, static, arm64 only |
+| `modlink` | Modbus TCP → RTU bridge (polls TCP devices, serves RTU) | napilab/modlink | Go, amd64 + arm64 |
+| `mbus-gw-t2r` | Multithreaded Modbus TCP → RTU gateway | napilab/mbus-gw-t2r | CMake + cross-toolchain |
+| `i2cscan` | I2C bus scanner, identifies chips by ID registers | [lab240/i2cscan](https://github.com/lab240/i2cscan) | gcc, static |
+| `napi-switchd` | NAPI-Switch management daemon: REST API, web UI, health watchdog | [lab240/napiswitch](https://github.com/lab240/napiswitch) (`backend/`) | Go, arm64 only; script `build-napi-switch.sh` |
+| `napi-mrp` | MRP (IEC 62439-2) ring daemon: Microchip `mrp_server` + `mrp` | [microchip-ung/mrp](https://github.com/microchip-ung/mrp), pinned in napiswitch `backend/deploy/build-deb.sh` | CMake, Debian trixie sysroot, arm64 + amd64; built with `napi-switchd` |
 
 ---
 
@@ -168,7 +174,11 @@ sudo build-napilab-repo.sh mbusd
 sudo build-napilab-repo.sh mbscan
 sudo build-napilab-repo.sh modbus-slave
 sudo build-napilab-repo.sh gpiod
+sudo build-napilab-repo.sh modlink
+sudo build-napilab-repo.sh mbus-gw-t2r
+sudo build-napilab-repo.sh i2cscan
 sudo build-napilab-repo.sh napi-mac
+sudo build-napilab-repo.sh napi-switch     # napi-switchd + napi-mrp
 ```
 
 ### Add a new package
@@ -200,8 +210,10 @@ sudo apt update
 ### Install packages
 
 ```bash
-sudo apt install mbusd mbscan modbus-slave gpiod
+sudo apt install mbusd mbscan modbus-slave gpiod modlink mbus-gw-t2r i2cscan
 sudo apt install napi-mac        # NAPI board only (arm64)
+sudo apt install napi-switchd    # NAPI-Switch only (arm64), pulls napi-mrp
+sudo apt install napi-mrp        # MRP ring node or test PC (arm64, amd64); kernel needs CONFIG_BRIDGE_MRP
 ```
 
 ### Remove the repository
@@ -235,7 +247,11 @@ scripts/
     build-mbscan.sh
     build-modbus-slave.sh
     build-gpiod.sh
+    build-modlink.sh
+    build-mbus-gw-t2r.sh
+    build-i2cscan.sh
     build-napi-mac.sh
+    build-napi-switch.sh
     build-napilab-repo.sh            # orchestrator script
 ```
 
@@ -258,12 +274,20 @@ scripts/
     build-mbscan.sh
     build-modbus-slave.sh
     build-gpiod.sh
+    build-modlink.sh
+    build-mbus-gw-t2r.sh
+    build-i2cscan.sh
     build-napi-mac.sh
+    build-napi-switch.sh
 
 /root/napilab-build/                 # build working directory
     mbusd/
     mbscan/
     modbus-slave/
     gpiod/
+    modlink/
+    mbus-gw-t2r/
+    i2cscan/
     napi-mac/
+    napi-switch/
 ```

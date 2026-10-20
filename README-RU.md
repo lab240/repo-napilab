@@ -18,7 +18,8 @@
 apt update && apt upgrade -y
 apt install -y nginx certbot python3-certbot-nginx reprepro gnupg2 \
                build-essential cmake gcc-aarch64-linux-gnu git \
-               autoconf automake libtool autoconf-archive
+               autoconf automake libtool autoconf-archive \
+               golang-go curl xz-utils
 ```
 
 ---
@@ -150,6 +151,11 @@ chmod +x /usr/local/bin/build-napilab-repo.sh
 | `modbus-slave` | Modbus RTU slave emulator | [lab240/modbus-slave](https://github.com/lab240/modbus-slave) | gcc, static |
 | `gpiod` | libgpiod v2 — утилиты и библиотека | [brgl/libgpiod](https://github.com/brgl/libgpiod) (ветка `v2.2.x`) | autotools + cross-compile |
 | `napi-mac` | MAC-адреса из EEPROM платы NAPI, имена `lanusb1..4` | [lab240/napi-macs-from-eeprom](https://github.com/lab240/napi-macs-from-eeprom) (ветка `c-port`) | `make test` + `make deb`, static, только arm64 |
+| `modlink` | Мост Modbus TCP → RTU (опрашивает TCP-устройства, отдаёт по RTU) | napilab/modlink | Go, amd64 + arm64 |
+| `mbus-gw-t2r` | Многопоточный шлюз Modbus TCP → RTU | napilab/mbus-gw-t2r | CMake + cross-toolchain |
+| `i2cscan` | Сканер шины I2C, определяет микросхемы по регистрам ID | [lab240/i2cscan](https://github.com/lab240/i2cscan) | gcc, static |
+| `napi-switchd` | Демон управления NAPI-Switch: REST API, веб-интерфейс, сторож здоровья | [lab240/napiswitch](https://github.com/lab240/napiswitch) (`backend/`) | Go, только arm64; скрипт `build-napi-switch.sh` |
+| `napi-mrp` | Демон кольца MRP (IEC 62439-2): `mrp_server` + `mrp` от Microchip | [microchip-ung/mrp](https://github.com/microchip-ung/mrp), версия зафиксирована в napiswitch `backend/deploy/build-deb.sh` | CMake, sysroot Debian trixie, arm64 + amd64; собирается вместе с `napi-switchd` |
 
 ---
 
@@ -168,7 +174,11 @@ sudo build-napilab-repo.sh mbusd
 sudo build-napilab-repo.sh mbscan
 sudo build-napilab-repo.sh modbus-slave
 sudo build-napilab-repo.sh gpiod
+sudo build-napilab-repo.sh modlink
+sudo build-napilab-repo.sh mbus-gw-t2r
+sudo build-napilab-repo.sh i2cscan
 sudo build-napilab-repo.sh napi-mac
+sudo build-napilab-repo.sh napi-switch     # napi-switchd + napi-mrp
 ```
 
 ### Добавить новый пакет
@@ -200,8 +210,10 @@ sudo apt update
 ### Установка пакетов
 
 ```bash
-sudo apt install mbusd mbscan modbus-slave gpiod
+sudo apt install mbusd mbscan modbus-slave gpiod modlink mbus-gw-t2r i2cscan
 sudo apt install napi-mac        # только для платы NAPI (arm64)
+sudo apt install napi-switchd    # только NAPI-Switch (arm64), ставит и napi-mrp
+sudo apt install napi-mrp        # узел MRP-кольца или тестовый ПК (arm64, amd64); в ядре нужен CONFIG_BRIDGE_MRP
 ```
 
 ### Удаление репозитория
@@ -235,7 +247,11 @@ scripts/
     build-mbscan.sh
     build-modbus-slave.sh
     build-gpiod.sh
+    build-modlink.sh
+    build-mbus-gw-t2r.sh
+    build-i2cscan.sh
     build-napi-mac.sh
+    build-napi-switch.sh
     build-napilab-repo.sh            # главный скрипт-оркестратор
 ```
 
@@ -258,12 +274,20 @@ scripts/
     build-mbscan.sh
     build-modbus-slave.sh
     build-gpiod.sh
+    build-modlink.sh
+    build-mbus-gw-t2r.sh
+    build-i2cscan.sh
     build-napi-mac.sh
+    build-napi-switch.sh
 
 /root/napilab-build/                 # рабочая директория сборки
     mbusd/
     mbscan/
     modbus-slave/
     gpiod/
+    modlink/
+    mbus-gw-t2r/
+    i2cscan/
     napi-mac/
+    napi-switch/
 ```
