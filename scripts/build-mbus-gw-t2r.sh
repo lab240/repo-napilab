@@ -61,7 +61,8 @@ cmake -DCMAKE_BUILD_TYPE=Release \
 make -C build-amd64 -j$(nproc)
 
 # The toolchain searches only the sysroot; the StarLet prefix is added to it.
-cmake -DCMAKE_BUILD_TYPE=Release \
+# arm64 pkg-config data, or the host library dir ends up in RUNPATH.
+PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig cmake -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_TOOLCHAIN_FILE=$WORKDIR/arm_linux_aarch64.cmake \
     -DCMAKE_FIND_ROOT_PATH="/usr/aarch64-linux-gnu;$WORKDIR/starlet-arm64" \
     -DCMAKE_PREFIX_PATH=$WORKDIR/starlet-arm64 \
