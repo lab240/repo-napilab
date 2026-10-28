@@ -10,17 +10,16 @@ DRY_RUN=${DRY_RUN:-0}
 mkdir -p $WORKDIR
 cd $WORKDIR
 
-if [ -d .git ]; then
-    git pull
-    git submodule update --init
-else
-    git clone git@github.com:napilab/mbus-gw-t2r.git .
-    git submodule update --init
-fi
+# The checkout is detached at a release tag: fetch, do not pull.
+[ -d .git ] || git clone git@github.com:napilab/mbus-gw-t2r.git .
 
-# PKG_REV: packaging changes of the same upstream commit (unit, conffiles).
+# Built from the latest release tag (v0.13.5 -> 0.13.5). Epoch 1: the old
+# packages were 1.0.0~git.<hash>. PKG_REV: packaging changes of one release.
+git fetch -q --tags origin
+TAG=$(git describe --tags --abbrev=0 --match 'v[0-9]*' origin/HEAD)
+git checkout -q "$TAG"
 PKG_REV=1
-VER=1.0.0~git.$(git rev-parse --short HEAD)-${PKG_REV}
+VER=1:${TAG#v}-${PKG_REV}
 echo "Building mbus-gw-t2r $VER"
 
 cat > arm_linux_aarch64.cmake << 'TOOLCHAIN'
@@ -66,6 +65,7 @@ cmake -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_TOOLCHAIN_FILE=$WORKDIR/arm_linux_aarch64.cmake \
     -DCMAKE_FIND_ROOT_PATH="/usr/aarch64-linux-gnu;$WORKDIR/starlet-arm64" \
     -DCMAKE_PREFIX_PATH=$WORKDIR/starlet-arm64 \
+    -DLIBCONFIG_STATIC_LIB=/usr/lib/aarch64-linux-gnu/libconfig.a \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -B build-arm64 -S . > /dev/null
 make -C build-arm64 -j$(nproc)
@@ -76,6 +76,8 @@ for ARCH in amd64 arm64; do
              deb-${ARCH}/usr/bin \
              deb-${ARCH}/etc/mbus-gw-t2r \
              deb-${ARCH}/lib/systemd/system
+    # libconfig is static (T2R_STATIC_LIBCONFIG): only glibc is needed.
+    GLIBC=$(strings build-${ARCH}/mbusgw-t2r | grep -oE 'GLIBC_[0-9.]+' | sort -Vu | tail -1)
     cat > deb-${ARCH}/DEBIAN/control << CTRL
 Package: mbus-gw-t2r
 Version: ${VER}
@@ -83,7 +85,7 @@ Section: utils
 Priority: optional
 Architecture: ${ARCH}
 Maintainer: NapiLab <info@napilab.ru>
-Depends: libconfig9
+Depends: libc6 (>= ${GLIBC#GLIBC_})
 Description: Modbus TCP to RTU gateway
  Multithreaded gateway for MODBUS TCP to RTU protocol.
  Service mbus-gw-t2r.service is installed disabled: configure
@@ -149,17 +151,18 @@ done
 cp build-amd64/mbusgw-t2r deb-amd64/usr/bin/mbus-gw-t2r
 cp build-arm64/mbusgw-t2r deb-arm64/usr/bin/mbus-gw-t2r
 
-dpkg-deb --build deb-amd64 mbus-gw-t2r_${VER}_amd64.deb
-dpkg-deb --build deb-arm64 mbus-gw-t2r_${VER}_arm64.deb
+FVER=${VER#*:}
+dpkg-deb --root-owner-group --build deb-amd64 mbus-gw-t2r_${FVER}_amd64.deb
+dpkg-deb --root-owner-group --build deb-arm64 mbus-gw-t2r_${FVER}_arm64.deb
 
 if [ "$DRY_RUN" = 1 ]; then
-    ls -l mbus-gw-t2r_${VER}_*.deb
+    ls -l mbus-gw-t2r_${FVER}_*.deb
     echo "mbus-gw-t2r $VER built (DRY_RUN, repository not changed)"
     exit 0
 fi
 
 reprepro -b $REPO remove stable mbus-gw-t2r || true
-reprepro -b $REPO includedeb stable mbus-gw-t2r_${VER}_amd64.deb
-reprepro -b $REPO includedeb stable mbus-gw-t2r_${VER}_arm64.deb
+reprepro -b $REPO includedeb stable mbus-gw-t2r_${FVER}_amd64.deb
+reprepro -b $REPO includedeb stable mbus-gw-t2r_${FVER}_arm64.deb
 
 echo "mbus-gw-t2r $VER done"
