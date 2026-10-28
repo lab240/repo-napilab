@@ -3,6 +3,9 @@ set -e
 
 REPO=/var/www/apt
 WORKDIR=/root/napilab-build/mbus-gw-t2r
+STARLET_DIR=/root/napilab-build/utility_routines
+# DRY_RUN=1: build the .deb files, do not touch the repository.
+DRY_RUN=${DRY_RUN:-0}
 
 mkdir -p $WORKDIR
 cd $WORKDIR
@@ -15,7 +18,9 @@ else
     git submodule update --init
 fi
 
-VER=1.0.0~git.$(git rev-parse --short HEAD)
+# PKG_REV: packaging changes of the same upstream commit (unit, conffiles).
+PKG_REV=1
+VER=1.0.0~git.$(git rev-parse --short HEAD)-${PKG_REV}
 echo "Building mbus-gw-t2r $VER"
 
 cat > arm_linux_aarch64.cmake << 'TOOLCHAIN'
@@ -28,24 +33,49 @@ SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 TOOLCHAIN
 
-rm -rf build-amd64 build-arm64
+# StarLet (UTILITY$ROUTINES) is a CMake package the gateway links statically:
+# built per architecture into $WORKDIR/starlet-<arch>, nothing in /usr/local.
+if [ -d $STARLET_DIR/.git ]; then
+    git -C $STARLET_DIR pull
+else
+    git clone https://gitlab.com/SysMan-One/utility_routines $STARLET_DIR
+fi
+echo "StarLet $(git -C $STARLET_DIR rev-parse --short HEAD)"
+
+rm -rf build-amd64 build-arm64 starlet-build-* starlet-amd64 starlet-arm64
+
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$WORKDIR/starlet-amd64 \
+    -B starlet-build-amd64 -S $STARLET_DIR > /dev/null
+make -s -C starlet-build-amd64 -j$(nproc) starlet
+cmake --install starlet-build-amd64 > /dev/null
+
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$WORKDIR/starlet-arm64 \
+    -DCMAKE_TOOLCHAIN_FILE=$WORKDIR/arm_linux_aarch64.cmake \
+    -B starlet-build-arm64 -S $STARLET_DIR > /dev/null
+make -s -C starlet-build-arm64 -j$(nproc) starlet
+cmake --install starlet-build-arm64 > /dev/null
 
 cmake -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_PREFIX_PATH=$WORKDIR/starlet-amd64 \
     -DCMAKE_INSTALL_PREFIX=/usr \
-    -B build-amd64 -S . > /dev/null 2>&1
+    -B build-amd64 -S . > /dev/null
 make -C build-amd64 -j$(nproc)
 
+# The toolchain searches only the sysroot; the StarLet prefix is added to it.
 cmake -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_TOOLCHAIN_FILE=$WORKDIR/arm_linux_aarch64.cmake \
+    -DCMAKE_FIND_ROOT_PATH="/usr/aarch64-linux-gnu;$WORKDIR/starlet-arm64" \
+    -DCMAKE_PREFIX_PATH=$WORKDIR/starlet-arm64 \
     -DCMAKE_INSTALL_PREFIX=/usr \
-    -B build-arm64 -S . > /dev/null 2>&1
+    -B build-arm64 -S . > /dev/null
 make -C build-arm64 -j$(nproc)
 
 for ARCH in amd64 arm64; do
     rm -rf deb-${ARCH}
     mkdir -p deb-${ARCH}/DEBIAN \
              deb-${ARCH}/usr/bin \
-             deb-${ARCH}/etc/mbus-gw-t2r
+             deb-${ARCH}/etc/mbus-gw-t2r \
+             deb-${ARCH}/lib/systemd/system
     cat > deb-${ARCH}/DEBIAN/control << CTRL
 Package: mbus-gw-t2r
 Version: ${VER}
@@ -53,10 +83,67 @@ Section: utils
 Priority: optional
 Architecture: ${ARCH}
 Maintainer: NapiLab <info@napilab.ru>
+Depends: libconfig9
 Description: Modbus TCP to RTU gateway
  Multithreaded gateway for MODBUS TCP to RTU protocol.
+ Service mbus-gw-t2r.service is installed disabled: configure
+ /etc/mbus-gw-t2r/modbus-t2r_settings.conf (or the napiconfig web UI),
+ then systemctl enable --now mbus-gw-t2r.
 CTRL
     cp modbus-t2r_settings.conf deb-${ARCH}/etc/mbus-gw-t2r/
+    # Settings are edited by hand or by napiconfig: keep them on upgrade.
+    echo /etc/mbus-gw-t2r/modbus-t2r_settings.conf > deb-${ARCH}/DEBIAN/conffiles
+
+    # Options (T2R_OPTS, e.g. /trace) come from /etc/default/mbus-gw-t2r.
+    cat > deb-${ARCH}/lib/systemd/system/mbus-gw-t2r.service << 'UNIT'
+[Unit]
+Description=MODBUS TCP to RTU gateway (mbus-gw-t2r)
+Documentation=https://github.com/napilab/mbus-gw-t2r
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/default/mbus-gw-t2r
+ExecStart=/usr/bin/mbus-gw-t2r /settings=/etc/mbus-gw-t2r/modbus-t2r_settings.conf $T2R_OPTS
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+    cat > deb-${ARCH}/DEBIAN/postinst << 'SCRIPT'
+#!/bin/sh
+set -e
+# Installed disabled; a running gateway is restarted on upgrade.
+if [ "$1" = configure ] && [ -d /run/systemd/system ]; then
+    systemctl daemon-reload || true
+    systemctl try-restart mbus-gw-t2r.service || true
+fi
+exit 0
+SCRIPT
+    cat > deb-${ARCH}/DEBIAN/prerm << 'SCRIPT'
+#!/bin/sh
+set -e
+if [ "$1" = remove ] && [ -d /run/systemd/system ]; then
+    systemctl stop mbus-gw-t2r.service || true
+fi
+exit 0
+SCRIPT
+    cat > deb-${ARCH}/DEBIAN/postrm << 'SCRIPT'
+#!/bin/sh
+set -e
+if [ "$1" = remove ] || [ "$1" = purge ]; then
+    systemctl disable mbus-gw-t2r.service >/dev/null 2>&1 || true
+    [ -d /run/systemd/system ] && systemctl daemon-reload || true
+fi
+if [ "$1" = purge ]; then
+    rm -f /etc/default/mbus-gw-t2r
+fi
+exit 0
+SCRIPT
+    chmod 755 deb-${ARCH}/DEBIAN/postinst deb-${ARCH}/DEBIAN/prerm deb-${ARCH}/DEBIAN/postrm
 done
 
 cp build-amd64/mbusgw-t2r deb-amd64/usr/bin/mbus-gw-t2r
@@ -64,6 +151,12 @@ cp build-arm64/mbusgw-t2r deb-arm64/usr/bin/mbus-gw-t2r
 
 dpkg-deb --build deb-amd64 mbus-gw-t2r_${VER}_amd64.deb
 dpkg-deb --build deb-arm64 mbus-gw-t2r_${VER}_arm64.deb
+
+if [ "$DRY_RUN" = 1 ]; then
+    ls -l mbus-gw-t2r_${VER}_*.deb
+    echo "mbus-gw-t2r $VER built (DRY_RUN, repository not changed)"
+    exit 0
+fi
 
 reprepro -b $REPO remove stable mbus-gw-t2r || true
 reprepro -b $REPO includedeb stable mbus-gw-t2r_${VER}_amd64.deb
