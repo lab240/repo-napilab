@@ -157,6 +157,7 @@ chmod +x /usr/local/bin/build-napilab-repo.sh
 | `napi-switchd` | Демон управления NAPI-Switch: REST API, веб-интерфейс, сторож здоровья | [lab240/napiswitch](https://github.com/lab240/napiswitch) (`backend/`) | Go, только arm64; скрипт `build-napi-switch.sh` |
 | `napi-mrp` | Демон кольца MRP (IEC 62439-2): `mrp_server` + `mrp` от Microchip | [microchip-ung/mrp](https://github.com/microchip-ung/mrp), версия зафиксирована в napiswitch `backend/deploy/build-deb.sh` | CMake, sysroot Debian trixie, arm64 + amd64; собирается вместе с `napi-switchd` |
 | `telegraf-light` | Telegraf только с плагинами NaPi (cpu, modbus, snmp, mqtt_consumer, системные метрики → influxdb_v2): 22 МБ вместо 300, ~20 МБ RSS. Заменяет пакет `telegraf` | [lab240/telegraf-ligth](https://github.com/lab240/telegraf-ligth), версия Telegraf и плагины в `version.env`, `plugins.txt` | Go, только arm64 |
+| `napi-avahi` | NAPI в сети без знания IP: mDNS-имя `napi<SoC>-<MAC>.local`, служба `_napi._tcp` с моделью, SoC, ОС, ролью, MAC; `napi-avahi list`. Утилиты поиска для ПК (`napi-finder.exe`) в исходном репозитории | [lab240/napi-avahi](https://github.com/lab240/napi-avahi) | `make test` + `make deb`, shell, Architecture all |
 
 ---
 
@@ -181,6 +182,7 @@ sudo build-napilab-repo.sh i2cscan
 sudo build-napilab-repo.sh napi-mac
 sudo build-napilab-repo.sh napi-switch     # napi-switchd + napi-mrp
 sudo build-napilab-repo.sh telegraf-light
+sudo build-napilab-repo.sh napi-avahi
 ```
 
 ### Добавить новый пакет
@@ -217,6 +219,7 @@ sudo apt install napi-mac        # только для платы NAPI (arm64)
 sudo apt install napi-switchd    # только NAPI-Switch (arm64), ставит и napi-mrp
 sudo apt install napi-mrp        # узел MRP-кольца или тестовый ПК (arm64, amd64); в ядре нужен CONFIG_BRIDGE_MRP
 sudo apt install telegraf-light  # Telegraf для NaPi (arm64), заменяет telegraf от InfluxData
+sudo apt install napi-avahi      # платы NAPI: mDNS-имя napi<SoC>-<MAC>.local, _napi._tcp
 ```
 
 ### Удаление репозитория
@@ -256,6 +259,7 @@ scripts/
     build-napi-mac.sh
     build-napi-switch.sh
     build-telegraf-light.sh
+    build-napi-avahi.sh
     build-napilab-repo.sh            # главный скрипт-оркестратор
 ```
 

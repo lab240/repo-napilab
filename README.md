@@ -157,6 +157,7 @@ chmod +x /usr/local/bin/build-napilab-repo.sh
 | `napi-switchd` | NAPI-Switch management daemon: REST API, web UI, health watchdog | [lab240/napiswitch](https://github.com/lab240/napiswitch) (`backend/`) | Go, arm64 only; script `build-napi-switch.sh` |
 | `napi-mrp` | MRP (IEC 62439-2) ring daemon: Microchip `mrp_server` + `mrp` | [microchip-ung/mrp](https://github.com/microchip-ung/mrp), pinned in napiswitch `backend/deploy/build-deb.sh` | CMake, Debian trixie sysroot, arm64 + amd64; built with `napi-switchd` |
 | `telegraf-light` | Telegraf with NaPi plugins only (cpu, modbus, snmp, mqtt_consumer, host metrics → influxdb_v2): 22 MB instead of 300, ~20 MB RSS. Replaces the `telegraf` package | [lab240/telegraf-ligth](https://github.com/lab240/telegraf-ligth), Telegraf version and plugins in `version.env`, `plugins.txt` | Go, arm64 only |
+| `napi-avahi` | NAPI on the LAN without knowing its IP: mDNS name `napi<SoC>-<MAC>.local`, service `_napi._tcp` with model, SoC, OS, role, MAC; `napi-avahi list`. Finders for PCs (`napi-finder.exe`) in the upstream repo | [lab240/napi-avahi](https://github.com/lab240/napi-avahi) | `make test` + `make deb`, shell, Architecture all |
 
 ---
 
@@ -181,6 +182,7 @@ sudo build-napilab-repo.sh i2cscan
 sudo build-napilab-repo.sh napi-mac
 sudo build-napilab-repo.sh napi-switch     # napi-switchd + napi-mrp
 sudo build-napilab-repo.sh telegraf-light
+sudo build-napilab-repo.sh napi-avahi
 ```
 
 ### Add a new package
@@ -217,6 +219,7 @@ sudo apt install napi-mac        # NAPI board only (arm64)
 sudo apt install napi-switchd    # NAPI-Switch only (arm64), pulls napi-mrp
 sudo apt install napi-mrp        # MRP ring node or test PC (arm64, amd64); kernel needs CONFIG_BRIDGE_MRP
 sudo apt install telegraf-light  # Telegraf for NaPi (arm64), replaces InfluxData telegraf
+sudo apt install napi-avahi      # NAPI boards: mDNS name napi<SoC>-<MAC>.local, _napi._tcp
 ```
 
 ### Remove the repository
@@ -256,6 +259,7 @@ scripts/
     build-napi-mac.sh
     build-napi-switch.sh
     build-telegraf-light.sh
+    build-napi-avahi.sh
     build-napilab-repo.sh            # orchestrator script
 ```
 
