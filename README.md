@@ -158,6 +158,8 @@ chmod +x /usr/local/bin/build-napilab-repo.sh
 | `napi-mrp` | MRP (IEC 62439-2) ring daemon: Microchip `mrp_server` + `mrp` | [microchip-ung/mrp](https://github.com/microchip-ung/mrp), pinned in napiswitch `backend/deploy/build-deb.sh` | CMake, Debian trixie sysroot, arm64 + amd64; built with `napi-switchd` |
 | `telegraf-light` | Telegraf with NaPi plugins only (cpu, modbus, snmp, mqtt_consumer, host metrics → influxdb_v2): 22 MB instead of 300, ~20 MB RSS. Replaces the `telegraf` package | [lab240/telegraf-ligth](https://github.com/lab240/telegraf-ligth), Telegraf version and plugins in `version.env`, `plugins.txt` | Go, arm64 only |
 | `napi-avahi` | NAPI on the LAN without knowing its IP: mDNS name `napi<SoC>-<MAC>.local`, service `_napi._tcp` with model, SoC, OS, role, MAC; `napi-avahi list`. Finders for PCs (`napi-finder.exe`) in the upstream repo | [lab240/napi-avahi](https://github.com/lab240/napi-avahi) | `make test` + `make deb`, shell, Architecture all |
+| `influxdb2`, `influxdb2-cli` | InfluxDB 2 time-series database and its CLI: the official InfluxData packages, put into the repo as they are after the signature check (not in Ubuntu/Debian) | [influxdata/influxdb](https://github.com/influxdata/influxdb), version pinned in the script | download + GPG check, arm64 + amd64 |
+| `donoff-server` | Local server of the donoff sockets: mosquitto for the LAN (avahi `_mqtt._tcp donoff=1`), InfluxDB 2 history, donoff-panel (tiles, commands, history graphs on :8090); `donoff-server show/passwd/bridge` | [dmnovikov/donoff-plate](https://github.com/dmnovikov/donoff-plate) (`packaging/donoff-server`) | Go, arm64 + amd64; depends on `influxdb2` |
 
 ---
 
@@ -183,6 +185,8 @@ sudo build-napilab-repo.sh napi-mac
 sudo build-napilab-repo.sh napi-switch     # napi-switchd + napi-mrp
 sudo build-napilab-repo.sh telegraf-light
 sudo build-napilab-repo.sh napi-avahi
+sudo build-napilab-repo.sh influxdb2
+sudo build-napilab-repo.sh donoff-server
 ```
 
 ### Add a new package
@@ -220,6 +224,7 @@ sudo apt install napi-switchd    # NAPI-Switch only (arm64), pulls napi-mrp
 sudo apt install napi-mrp        # MRP ring node or test PC (arm64, amd64); kernel needs CONFIG_BRIDGE_MRP
 sudo apt install telegraf-light  # Telegraf for NaPi (arm64), replaces InfluxData telegraf
 sudo apt install napi-avahi      # NAPI boards: mDNS name napi<SoC>-<MAC>.local, _napi._tcp
+sudo apt install donoff-server   # local donoff server: mosquitto + InfluxDB 2 + panel :8090
 ```
 
 ### Remove the repository
@@ -260,6 +265,8 @@ scripts/
     build-napi-switch.sh
     build-telegraf-light.sh
     build-napi-avahi.sh
+    build-influxdb2.sh
+    build-donoff-server.sh
     build-napilab-repo.sh            # orchestrator script
 ```
 

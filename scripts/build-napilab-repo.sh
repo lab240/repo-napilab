@@ -3,7 +3,7 @@ set -e
 
 SCRIPTS_DIR=/usr/local/lib/napilab-repo
 
-PACKAGES=(mbusd mbscan modbus-slave modlink mbus-gw-t2r gpiod i2cscan napi-mac napi-switch telegraf-light napi-avahi)
+PACKAGES=(mbusd mbscan modbus-slave modlink mbus-gw-t2r gpiod i2cscan napi-mac napi-switch telegraf-light napi-avahi influxdb2 donoff-server)
 
 if [ -n "$1" ]; then
     PACKAGES=($1)
